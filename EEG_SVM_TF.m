@@ -77,7 +77,10 @@ function [ Odata, Accuracy, Weights ] = EEG_SVM_TF( indata, Trials, UseY, time_w
 %Accuracy           (time, sonser) Accuracy of the cross validated classifier
 %Weights            (time, sensor) The weights of the electrodes that is used for classification. This can easiy be used to calculate posterior 
 %                   probabilities for other situation that a certain activation pattern belongs to one of both calsses.
-% 
+%%%%%% to do %%%%%%%
+% 1. Resolve the issue with binning edges in the data.
+% 2. Implement a warning if there are too few trials left for averaging in the test set.
+% 3. Add a jackknife option for ERP decoding.
 
 
 %Set defaults
