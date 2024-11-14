@@ -78,8 +78,9 @@ function [ Odata, Accuracy, Weights ] = EEG_SVM_TF( indata, Trials, UseY, time_w
 %Weights            (time, sensor) The weights of the electrodes that is used for classification. This can easiy be used to calculate posterior 
 %                   probabilities for other situation that a certain activation pattern belongs to one of both calsses.
 %%%%%% to do %%%%%%%
-% 1. Resolve the issue with binning edges in the data.
-% 2. Implement a warning if there are too few trials left for averaging in the test set.
+% 1. Resolve the issue with binning edges in the data. - Done 12.11.24 HK
+% 2. Implement a warning if there are too few trials left for averaging in
+% the test set. - Done 12.11.24 HK
 % 3. Add a jackknife option for ERP decoding.
 
 
@@ -238,11 +239,26 @@ if minimum_test
     end
 end;
 
-Time_in_DP = find([indata.times]==time_w(1)) : FStepSize : find([indata.times]==time_w(2));
-PlotTime=indata.times(Time_in_DP);
+% added 14.11.24 HK
+if DoAvg>0
+    while n_cat_low /avgoverN < 1
+        splitratio = splitratio + 0.01;
+        n_cat_low = ceil(SmallerN*splitratio);
+        DispSTR = [DispSTR 'Splitratio has been increased to ' num2str(splitratio) ' to ensure one ERP for each condition in test set (now: ' num2str(n_cat_low) ').\n'];
+    end
+end;
 
+% added 14.11.24 HK
 Tbef = floor(Fbins/2);
 Tafter = ceil(Fbins/2);
+Time_in_DP = find([indata.times]==time_w(1)) + Tbef : FStepSize : find([indata.times]==time_w(2))-Tafter;
+PlotTime=indata.times(Time_in_DP);
+
+%Time_in_DP = find([indata.times]==time_w(1)) : FStepSize : find([indata.times]==time_w(2));
+%PlotTime=indata.times(Time_in_DP);
+
+%Tbef = floor(Fbins/2);
+%Tafter = ceil(Fbins/2);
 
 
 if ~isempty(activate_ica)
@@ -277,9 +293,11 @@ scaleT = ' ';
 SensorInformation=nan(length(PlotTime),length(Trials),length(Etotal),TFdims); %4D time trial channel frequency (if set). Last dimension is always time domain EEG at first position!
 
 %Smooth time domain data (with Fbins) and translate everything into one big array 'SensorInformation'
+% changed 11.14.24 HK
 for FreqCount = 1 : TFdims
     K=0;
-    for bc = find([indata.times]==time_w(1)) : FStepSize : find([indata.times]==time_w(2))
+    for bc = find([indata.times]==time_w(1)) + Tbef : FStepSize : find([indata.times]==time_w(2))-Tafter
+        %bc = find([indata.times]==time_w(1)) : FStepSize : find([indata.times]==time_w(2))
         K=K+1;
         SensorInformation(K,:,:,FreqCount) = squeeze(mean(indata.data(Ecluster{Ecount},[bc-Tbef:bc+Tafter-1],Trials),2))';
     end;
