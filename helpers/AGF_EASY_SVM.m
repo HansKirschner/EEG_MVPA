@@ -34,7 +34,7 @@ for n_fold = 1 : size(TrainingTrials,1) % loop over number of folds
             TestX   = reshape(SensorInformation(TestTrials(n_fold,:),:,:),length(TestTrials(n_fold,:)),size(SensorInformation,2)*size(SensorInformation,3));
         end;
         
-        if DoAvg > 0
+                if DoAvg > 0
 
             % ok, we want to run MVPA on ERP data. Let's do some averaging
             % in a rather clumsy way. But I couldn't find a vectorized
@@ -42,37 +42,54 @@ for n_fold = 1 : size(TrainingTrials,1) % loop over number of folds
 
             % here we go: find the trials to average over and pre-allocate
             % the variables
-
-            % for Training set
-            ix1Tr           = find(UseY(TrainingTrials(n_fold,:)) == 0);
-            ix2Tr           = find(UseY(TrainingTrials(n_fold,:)) == 1);
-            NrTr1           = floor(length(ix1Tr)/avgoverN);
-            TrainXAVG       = nan(2*NrTr1,size(TrainX,2));
-            TruthTraining   = nan(1,2*NrTr1);
-            ix = 1;
-            for ii = 1:NrTr1
-                TrainXAVG(ii,:) = mean(TrainX(ix1Tr(ix:ix+avgoverN-1),:),1);
-                if ii == NrTr1
-                    TrainXAVG(ii,:) = mean(TrainX(ix1Tr(ix:end),:),1);
+            if DoAvg == 1
+                % for Training set
+                ix1Tr           = find(UseY(TrainingTrials(n_fold,:)) == 0);
+                ix2Tr           = find(UseY(TrainingTrials(n_fold,:)) == 1);
+                NrTr1           = floor(length(ix1Tr)/avgoverN);
+                TrainXAVG       = nan(2*NrTr1,size(TrainX,2));
+                TruthTraining   = nan(1,2*NrTr1);
+                ix = 1;
+                for ii = 1:NrTr1
+                    TrainXAVG(ii,:) = mean(TrainX(ix1Tr(ix:ix+avgoverN-1),:),1);
+                    if ii == NrTr1
+                        TrainXAVG(ii,:) = mean(TrainX(ix1Tr(ix:end),:),1);
+                    end
+                    ix = 1 + avgoverN;
+                    TruthTraining(ii) = 0;
                 end
-                ix = 1 + avgoverN;
-                TruthTraining(ii) = 0;
+
+                NrTr2 = floor(length(ix2Tr)/avgoverN);
+                ix = 1;
+                for ii = 1:NrTr2
+                    TrainXAVG(ii+NrTr1,:) = mean(TrainX(ix2Tr(ix:ix+avgoverN-1),:),1);
+                    if ii == NrTr2
+                        TrainXAVG(ii+NrTr1,:) = mean(TrainX(ix2Tr(ix:end),:),1);
+                    end
+                    ix = 1 +avgoverN;
+                    TruthTraining(ii+NrTr1) = 1;
+                end
             end
 
-            NrTr2 = floor(length(ix2Tr)/avgoverN);
-            ix = 1;
-            for ii = 1:NrTr2
-                TrainXAVG(ii+NrTr1,:) = mean(TrainX(ix2Tr(ix:ix+avgoverN-1),:),1);
-                if ii == NrTr2
-                    TrainXAVG(ii+NrTr1,:) = mean(TrainX(ix2Tr(ix:end),:),1);
+            %keyboard
+            if DoAvg == 3 || DoAvg == 4 || DoAvg == 5 % use jacknife approach
+                ix1Tr           = find(UseY(TrainingTrials(n_fold,:)) == 0);
+                ix2Tr           = find(UseY(TrainingTrials(n_fold,:)) == 1);
+                jackknifeTrainX =  nan(size(TrainX));
+                for j = 1:length(ix1Tr)
+                    
+                    % Create a jackknifed subset by leaving out trial j
+                    jackknifeTrainX(ix1Tr(j),:)    = mean(TrainX(ix1Tr([1:j-1, j+1:end]), :),1);
+                    jackknifeTrainX(ix2Tr(j),:)    = mean(TrainX(ix2Tr([1:j-1, j+1:end]), :),1);
+                    
+                    TruthTraining(ix1Tr(j))        = 0;
+                    TruthTraining(ix2Tr(j))        = 1;
                 end
-                ix = 1 +avgoverN;
-                TruthTraining(ii+NrTr1) = 1;
+               
             end
-
 
             % for Test-set
-            if DoAvg == 1
+            if DoAvg == 1 || DoAvg == 4
                 ix1Te        = find(UseY(TestTrials(n_fold,:)) == 0);
                 ix2Te        = find(UseY(TestTrials(n_fold,:)) == 1);
                 NrTr1        = floor(length(ix1Te)/avgoverN);
@@ -100,10 +117,28 @@ for n_fold = 1 : size(TrainingTrials,1) % loop over number of folds
                     TruthTesting(ii+NrTr1) = 1;
                 end
 
-            elseif DoAvg == 2
-                % use ERPs only for training
+            elseif DoAvg == 2 || DoAvg == 5 % use ERPs only for training
+
                 TestXAVG     = TestX;
                 TruthTesting = UseY(TestTrials(n_fold,:))';
+
+            elseif DoAvg == 3 % use jacknife approach for testing
+
+                ix1Te        = find(UseY(TestTrials(n_fold,:)) == 0);
+                ix2Te        = find(UseY(TestTrials(n_fold,:)) == 1);
+                TruthTesting = UseY(TestTrials(n_fold,:))';
+                TestXAVG     = nan(size(TestX));
+
+                for j = 1:length(ix1Te)
+                    
+                    % Create a jackknifed subset by leaving out trial j
+                    TestXAVG(ix1Te(j),:)    = mean(TestX(ix1Te([1:j-1, j+1:end]), :),1);
+                    TestXAVG(ix2Te(j),:)    = mean(TestX(ix2Te([1:j-1, j+1:end]), :),1);
+                    
+                    TruthTesting(ix1Te(j))  = 0;
+                    TruthTesting(ix2Te(j))  = 1;
+                end
+
             end
         end
         
@@ -144,14 +179,26 @@ for n_fold = 1 : size(TrainingTrials,1) % loop over number of folds
                 end;
             end;
             
-        elseif DoAvg %wonderful new world: use matlab fitcsvm and predict functions (much faster)
-            if ~isempty(add_arguments)
-                SVMmodel = eval(['fitcsvm(TrainXAVG,TruthTraining,''IterationLimit'', IterNum,' add_arguments ')']);
-            else
-                SVMmodel = fitcsvm(TrainXAVG,TruthTraining,'IterationLimit', IterNum);
-                %SVMmodel = fitcecoc(TrainXAVG,TruthTraining, 'Coding','onevsall','Learners','SVM' );   %train support vector mahcine
-                
-            end;
+        elseif DoAvg>0 %wonderful new world: use matlab fitcsvm and predict functions (much faster)
+            
+            if DoAvg == 1||DoAvg == 2
+                if ~isempty(add_arguments)
+                    SVMmodel = eval(['fitcsvm(TrainXAVG,TruthTraining,''IterationLimit'', IterNum,' add_arguments ')']);
+                else
+                    SVMmodel = fitcsvm(TrainXAVG,TruthTraining,'IterationLimit', IterNum);
+                    %SVMmodel = fitcecoc(TrainXAVG,TruthTraining, 'Coding','onevsall','Learners','SVM' );   %train support vector mahcine
+                end;
+            end
+
+            if DoAvg == 3||DoAvg == 4||DoAvg == 5
+                if ~isempty(add_arguments)
+                    SVMmodel = eval(['fitcsvm(jackknifeTrainX,TruthTraining,''IterationLimit'', IterNum,' add_arguments ')']);
+                else
+                    SVMmodel = fitcsvm(jackknifeTrainX,TruthTraining,'IterationLimit', IterNum);
+                    %SVMmodel = fitcecoc(TrainXAVG,TruthTraining, 'Coding','onevsall','Learners','SVM' );   %train support vector mahcine
+                end;
+            end
+            
             C = predict(SVMmodel,TestXAVG);
            
             Accuracy(K,n_fold) = 1-sum( TruthTesting ~= C')/size(TestXAVG,1);
