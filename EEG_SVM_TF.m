@@ -10,8 +10,14 @@ function [ Odata, Accuracy, Weights ] = EEG_SVM_TF( indata, Trials, UseY, time_w
 %
 %OPTIONAL INPUT:
 %
-%'DoAvg'            Should trials be avaraged (0 = no (default), 1 = yes compute ERP for training and test set, 2 = compute ERPs only for training-set)
-%'AvgOverN'         How many trials should be avagrage
+%'DoAvg'            Should trials be avaraged 
+%                   0 = no (default) 
+%                   1 = yes compute ERP for training and test-set 
+%                   2 = compute ERPs only for training-set and use single-trial data for testing
+%                   3 = Averaging trials using a jackknife approach for training and testing
+%                   4 = Averaging trials using a jackknife approach for training and do testing on ERP data
+%                   5 = Averaging trials using a jackknife approach for training and do testing on single-trial data
+%'AvgOverN'         How many trials should be averaged over?
 %'bin_size'         Signal is averaged over that many datapoints (default = 0).
 %'stepsize'         Will jump that many datapoints (default = 1).
 %'disp'             0 = quite mode, 1 = text output, 2 = plotting of searchlight as well as text (default).
@@ -240,7 +246,7 @@ if minimum_test
 end;
 
 % added 14.11.24 HK
-if DoAvg>0
+if DoAvg == 1 || DoAvg == 4
     while n_cat_low /avgoverN < 1
         splitratio = splitratio + 0.01;
         n_cat_low = ceil(SmallerN*splitratio);
@@ -358,10 +364,19 @@ if Fdisp
     disp(['Testsize is set to ' num2str(splitratio) 'x trainingsize and contains ' num2str(2*n_cat_low) ' observations.'])
     disp(' ')
     if DoAvg == 1
-        disp(['Averaging trials (n = ' num2str(avgoverN) ') belonging to the same exemplar before decoding'])
+        disp(['Averaging trials (n = ' num2str(avgoverN) ') per condition for training and testing...'])
         disp(' ')
     elseif DoAvg == 2
-        disp(['Averaging trials (n = ' num2str(avgoverN) ') belonging to the same exemplar before decoding only for training'])
+        disp(['Averaging trials (n = ' num2str(avgoverN) ') per condition for training and testing on single-trial data...'])
+        disp(' ')
+    elseif DoAvg == 3
+        disp(['Averaging trials using a jackknife approach for training and testing.'])
+        disp(' ')
+    elseif DoAvg == 4
+        disp(['Averaging trials using a jackknife approach for training and averaging trials (n = ' num2str(avgoverN) ') per condition for testing'])
+        disp(' ')
+    elseif DoAvg == 5
+        disp(['Averaging trials using a jackknife approach for training and testing on single-trial data'])
         disp(' ')
     end
     disp(['Input dataset epoch from ' num2str(indata.xmin) ' to ' num2str(indata.xmax) ' ms.'])
