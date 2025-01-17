@@ -59,7 +59,7 @@ for sub = 1:Nsub
 
         for itr = 1:Nitr
             % assign random target ID for Permutation Testing
-            Answer = squeeze(shuffle(Info.PT_Info.Truth(itr,1,:)));
+            Answer = squeeze(shuffle(Info.PT_Info.Truth(1,itr,:)));
             for tp = 1:Ntp
                 prediction = squeeze(Info.PT_Info.model(tp,itr,:)); % this is predictions from models
                 Err = Answer - prediction;
