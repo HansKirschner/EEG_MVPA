@@ -25,7 +25,7 @@ for n_fold = 1 : size(TrainingTrials,1) % loop over number of folds
         c_iteration = c_iteration + 1;
         SensorInformation = squeeze(UseSensorInformation(K,:,:,:));
         %Reshape data to an electrode by frequency array
-        
+
         if size(SensorInformation,1)==1
             TrainX  = SensorInformation(:,TrainingTrials(n_fold,:))';
             TestX   = SensorInformation(:,TestTrials(n_fold,:))';
@@ -33,8 +33,8 @@ for n_fold = 1 : size(TrainingTrials,1) % loop over number of folds
             TrainX  = reshape(SensorInformation(TrainingTrials(n_fold,:),:,:),length(TrainingTrials(n_fold,:)),size(SensorInformation,2)*size(SensorInformation,3));
             TestX   = reshape(SensorInformation(TestTrials(n_fold,:),:,:),length(TestTrials(n_fold,:)),size(SensorInformation,2)*size(SensorInformation,3));
         end;
-        
-                if DoAvg > 0
+
+        if DoAvg > 0
 
             % ok, we want to run MVPA on ERP data. Let's do some averaging
             % in a rather clumsy way. But I couldn't find a vectorized
@@ -42,7 +42,7 @@ for n_fold = 1 : size(TrainingTrials,1) % loop over number of folds
 
             % here we go: find the trials to average over and pre-allocate
             % the variables
-            if DoAvg == 1
+            if DoAvg == 1 || DoAvg == 2
                 % for Training set
                 ix1Tr           = find(UseY(TrainingTrials(n_fold,:)) == 0);
                 ix2Tr           = find(UseY(TrainingTrials(n_fold,:)) == 1);
@@ -77,15 +77,15 @@ for n_fold = 1 : size(TrainingTrials,1) % loop over number of folds
                 ix2Tr           = find(UseY(TrainingTrials(n_fold,:)) == 1);
                 jackknifeTrainX =  nan(size(TrainX));
                 for j = 1:length(ix1Tr)
-                    
+
                     % Create a jackknifed subset by leaving out trial j
                     jackknifeTrainX(ix1Tr(j),:)    = mean(TrainX(ix1Tr([1:j-1, j+1:end]), :),1);
                     jackknifeTrainX(ix2Tr(j),:)    = mean(TrainX(ix2Tr([1:j-1, j+1:end]), :),1);
-                    
+
                     TruthTraining(ix1Tr(j))        = 0;
                     TruthTraining(ix2Tr(j))        = 1;
                 end
-               
+
             end
 
             % for Test-set
@@ -94,9 +94,9 @@ for n_fold = 1 : size(TrainingTrials,1) % loop over number of folds
                 ix2Te        = find(UseY(TestTrials(n_fold,:)) == 1);
                 NrTr1        = floor(length(ix1Te)/avgoverN);
                 TestXAVG     = nan(2*NrTr1,size(TestX,2));
-                TruthTesting = nan(1,2*NrTr1); 
+                TruthTesting = nan(1,2*NrTr1);
                 ix = 1;
-                
+
                 for ii = 1:NrTr1
                     TestXAVG(ii,:) = mean(TestX(ix1Te(ix:ix+avgoverN-1),:),1);
                     if ii == NrTr1
@@ -130,18 +130,18 @@ for n_fold = 1 : size(TrainingTrials,1) % loop over number of folds
                 TestXAVG     = nan(size(TestX));
 
                 for j = 1:length(ix1Te)
-                    
+
                     % Create a jackknifed subset by leaving out trial j
                     TestXAVG(ix1Te(j),:)    = mean(TestX(ix1Te([1:j-1, j+1:end]), :),1);
                     TestXAVG(ix2Te(j),:)    = mean(TestX(ix2Te([1:j-1, j+1:end]), :),1);
-                    
+
                     TruthTesting(ix1Te(j))  = 0;
                     TruthTesting(ix2Te(j))  = 1;
                 end
 
             end
         end
-        
+
         if oldschool == 1 %use old matlab functions svmtrain and svmpredict
             % No longer supported
             disp('Oldschool mode no longer supported...')
@@ -152,7 +152,7 @@ for n_fold = 1 : size(TrainingTrials,1) % loop over number of folds
             else
                 SVMmodel = fitcsvm(TrainX,UseY(TrainingTrials(n_fold,:)),'IterationLimit', IterNum);
             end;
-            
+
             C = predict(SVMmodel,TestX);
             Accuracy(K,n_fold) = 1-sum(UseY(TestTrials(n_fold,:))~= C)/length(TestTrials(n_fold,:));
             PT_Info.model(K,n_fold,:) = C';
@@ -178,9 +178,9 @@ for n_fold = 1 : size(TrainingTrials,1) % loop over number of folds
                     fprintf(2, '\n');
                 end;
             end;
-            
+
         elseif DoAvg>0 %wonderful new world: use matlab fitcsvm and predict functions (much faster)
-            
+
             if DoAvg == 1||DoAvg == 2
                 if ~isempty(add_arguments)
                     SVMmodel = eval(['fitcsvm(TrainXAVG,TruthTraining,''IterationLimit'', IterNum,' add_arguments ')']);
@@ -198,15 +198,15 @@ for n_fold = 1 : size(TrainingTrials,1) % loop over number of folds
                     %SVMmodel = fitcecoc(TrainXAVG,TruthTraining, 'Coding','onevsall','Learners','SVM' );   %train support vector mahcine
                 end;
             end
-            
+
             C = predict(SVMmodel,TestXAVG);
-           
+
             Accuracy(K,n_fold) = 1-sum( TruthTesting ~= C')/size(TestXAVG,1);
             PT_Info.model(K,n_fold,:) = C';
             PT_Info.Truth(K,n_fold,:) = TruthTesting;
             %Accuracy(K,n_fold) = 1-sum(UseY(TestTrials(n_fold,:))~= C)/length(TestTrials(n_fold,:));
             SaveToler(K,n_fold) = SVMmodel.NumIterations;
-           
+
             Weights(:,K,n_fold) = SVMmodel.Beta'; % These are the weights assigned to each sensor
             if ret_SVM
                 FullSVM(K) = {SVMmodel}; %should only be set, of no crossvalidation is run! Otherwise overwrites itself
